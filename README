@@ -3,9 +3,9 @@ Installing button plugins
 
 Copy:
 
-	plugins/yourplugin/classes to tt-rss/classes
-	plugins/yourplugin/images to tt-rss/images
-   plugins/yourplugin/js to tt-rss/js
+    plugins/yourplugin/classes to tt-rss/classes
+    plugins/yourplugin/images to tt-rss/images
+    plugins/yourplugin/js to tt-rss/js
 
 Enable plugin by name in ARTICLE_BUTTON_PLUGINS, e.g.
 
