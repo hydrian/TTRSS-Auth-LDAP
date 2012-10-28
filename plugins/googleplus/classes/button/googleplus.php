@@ -1,10 +1,10 @@
 <?php
-class Pinterest_Button extends Plugin_Button {
+class Button_GooglePlus extends Button {
 	function render($article_id) {
-		$rv = "<img src=\"".theme_image($this->link, 'images/art-pinterest.png')."\"
+		$rv = "<img src=\"".theme_image($this->link, 'images/art-gplus.png')."\"
 			class='tagsPic' style=\"cursor : pointer\"
-			onclick=\"pinterest($article_id)\"
-			title='".__('Pinterest')."'>";
+			onclick=\"shareArticleToGooglePlus($article_id)\"
+			title='".__('Share on Google+')."'>";
 
 		return $rv;
 	}

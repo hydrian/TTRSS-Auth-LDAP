@@ -1,10 +1,10 @@
 <?php
-class ReadItLater_Button extends Plugin_Button {
+class Button_Identica extends Button {
 	function render($article_id) {
-		$rv = "<img src=\"".theme_image($this->link, 'images/art-readitlater.png')."\"
+		$rv = "<img src=\"".theme_image($this->link, 'images/art-identica.png')."\"
 			class='tagsPic' style=\"cursor : pointer\"
-			onclick=\"readArticleLater($article_id)\"
-			title='".__('Read it later')."'>";
+			onclick=\"shareArticleToIdentica($article_id)\"
+			title='".__('Share on identi.ca')."'>";
 
 		return $rv;
 	}

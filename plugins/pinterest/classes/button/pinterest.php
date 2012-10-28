@@ -1,10 +1,10 @@
 <?php
-class Identica_Button extends Plugin_Button {
+class Button_Pinterest extends Button {
 	function render($article_id) {
-		$rv = "<img src=\"".theme_image($this->link, 'images/art-identica.png')."\"
+		$rv = "<img src=\"".theme_image($this->link, 'images/art-pinterest.png')."\"
 			class='tagsPic' style=\"cursor : pointer\"
-			onclick=\"shareArticleToIdentica($article_id)\"
-			title='".__('Share on identi.ca')."'>";
+			onclick=\"pinterest($article_id)\"
+			title='".__('Pinterest')."'>";
 
 		return $rv;
 	}

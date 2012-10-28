@@ -1,5 +1,5 @@
 <?php
-class Flattr_Button extends Plugin_Button {
+class Button_Flattr extends Button {
   function render($article_id) {
 
     $result = db_query($this->link, "SELECT link
