@@ -1,0 +1,8 @@
+2013-04-08  btyger  <btyger@syferlock.com>
+
+	* init.php: version 0.02
+	Fixed LDAP over SSL
+	Fixed authentication with anonymous
+	Added LDAP schema cache for performance
+	Added loggging for authentication attempts
+	
