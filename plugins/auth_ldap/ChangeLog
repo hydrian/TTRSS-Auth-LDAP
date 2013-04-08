@@ -1,4 +1,4 @@
-2013-04-08  btyger  <btyger@syferlock.com>
+2013-04-08  btyger  <ben.tyger@tygerclan.net>
 
 	* init.php: version 0.02
 	Fixed LDAP over SSL
