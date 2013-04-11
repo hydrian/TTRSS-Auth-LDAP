@@ -4,7 +4,7 @@
  * @author hydrian (ben.tyger@tygerclan.net)
  * @copyright GPL2
  *  Requires php-ldap and PEAR Net::LDAP2
- * @version 0.02
+ * @version 0.03
  */
 
 /**
@@ -163,7 +163,7 @@ class Auth_Ldap extends Plugin implements IAuthModule {
 			//Cache LDAP Schema
 			if ($ldapSchemaCacheEnable) {
 				if (!sys_get_temp_dir()) {
-					$tmpFile=tmp;
+					$tmpFile=tmpname();
 					$tmpDir=dirname($tmpFile);
 					unlink($tmpFile);
 					unset($tmpFile);

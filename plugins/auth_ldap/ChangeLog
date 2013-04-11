@@ -1,4 +1,9 @@
-2013-04-08  btyger  <ben.tyger@tygerclan.net>
+2013-04-11  hydrian  <ben.tyger@tygerclan.net>
+
+	* init.php: version 0.03
+	Fixed Schema file location when sys_get_temp_dir() is not availiable.
+
+2013-04-08  hydrian  <ben.tyger@tygerclan.net>
 
 	* init.php: version 0.02
 	Fixed LDAP over SSL
