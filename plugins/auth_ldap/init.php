@@ -163,7 +163,7 @@ class Auth_Ldap extends Plugin implements IAuthModule {
 			//Cache LDAP Schema
 			if ($ldapSchemaCacheEnable) {
 				if (!sys_get_temp_dir()) {
-					$tmpFile=tmpname();
+					$tmpFile=tempnam();
 					$tmpDir=dirname($tmpFile);
 					unlink($tmpFile);
 					unset($tmpFile);
