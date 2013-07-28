@@ -4,7 +4,7 @@
  * @author hydrian (ben.tyger@tygerclan.net)
  * @copyright GPL2
  *  Requires php-ldap and PEAR Net::LDAP2
- * @version 0.03
+ * @version 0.04
  */
 
 /**
@@ -51,9 +51,14 @@ class Auth_Ldap extends Plugin implements IAuthModule {
 	private $link;
 	private $host;
 	private $base;
+	private $logClass;
+	
+
+	
+	private
 
 	function about() {
-		return array(0.02,
+		return array(0.04,
 			"Authenticates against an LDAP server (configured in config.php)",
 			"hydrian",
 			true);
@@ -92,6 +97,7 @@ class Auth_Ldap extends Plugin implements IAuthModule {
 	}
 
 	function authenticate($login, $password) {
+		$this->logClass = Logger::get();
 		if ($login && $password) {
 			
 	
@@ -223,6 +229,10 @@ class Auth_Ldap extends Plugin implements IAuthModule {
 			}
 		}
 		return false;
+	}
+	
+	function api_version() {
+		return 2;
 	}
 
 }
