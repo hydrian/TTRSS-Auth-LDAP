@@ -52,10 +52,8 @@ class Auth_Ldap extends Plugin implements IAuthModule {
 	private $host;
 	private $base;
 	private $logClass;
-	
+	private $ldapObj = NULL;
 
-	
-	private
 
 	function about() {
 		return array(0.04,
@@ -152,15 +150,16 @@ class Auth_Ldap extends Plugin implements IAuthModule {
 			if (LDAP_AUTH_ALLOW_UNTRUSTED_CERT === TRUE) {
 				putenv('LDAPTLS_REQCERT=never');
 			}
-			$ldapConn = Net_LDAP2::connect($ldapConnParams);
+			$this->ldapObj = new Net_LDAP2;
+			$ldapConn=$this->ldapObj->connect($ldapConnParams);
 			if (Net_LDAP2::isError($ldapConn)) {
 				$this->_log('Could not connect to LDAP Server: '.$ldapConn->getMessage());
 				return FALSE;
 			}
 			// Bind with service account if orignal connexion was anonymous
 			if ($anonymousBeforeBind) {
-				$binding=$ldapConn->bind(LDAP_AUTH_BINDDN, LDAP_AUTH_BINDPW);
-				if (Net_LDAP2::isError($binding)) {
+				$binding=$this->ldapObj->bind(LDAP_AUTH_BINDDN, LDAP_AUTH_BINDPW);
+				if ($this->ldapObj->isError($binding)) {
 					$this->_log('Cound not bind service account: '.$binding->getMessage());
 					return FALSE;
 				}
@@ -199,8 +198,8 @@ class Auth_Ldap extends Plugin implements IAuthModule {
 			//Searching for user
 			$completedSearchFiler=str_replace('???',$login,LDAP_AUTH_SEARCHFILTER);
 			$filterObj=Net_LDAP2_Filter::parse($completedSearchFiler);
-			$searchResults=$ldapConn->search(LDAP_AUTH_BASEDN, $filterObj);
-			if (Net_LDAP2::isError($searchResults)) {
+			$searchResults=$this->ldapObj->search(LDAP_AUTH_BASEDN, $filterObj);
+			if ($this->ldapObj->isError($searchResults)) {
 				$this->_log('LDAP Search Failed: '.$searchResults->getMessage());
 				return FALSE;
 			} elseif ($searchResults->count() === 0) {
@@ -214,7 +213,7 @@ class Auth_Ldap extends Plugin implements IAuthModule {
 			$userEntry=$searchResults->shiftEntry();
 			$userDN=$userEntry->dn();
 			//Binding with user's DN. 
-			$loginAttempt=$ldapConn->bind($userDN, $password);
+			$loginAttempt=$this->ldapObj->bind($userDN, $password);
 			$ldapConn->disconnect();
 			if ($loginAttempt === TRUE) {
 				if ($logAttempts) $this->_logAttempt((string)$login, 'successful');
