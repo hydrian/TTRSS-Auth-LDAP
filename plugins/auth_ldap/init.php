@@ -14,13 +14,14 @@
  * 	define('LDAP_AUTH_SERVER_URI', 'ldaps://LDAPServerHostname:port/');
  *	define('LDAP_AUTH_USETLS', FALSE); // Enable TLS Support for ldaps://
  *	define('LDAP_AUTH_ALLOW_UNTRUSTED_CERT', TRUE); // Allows untrusted certificate
- *	define('LDAP_AUTH_BINDDN', 'cn=serviceaccount,dc=example,dc=com');
- *	define('LDAP_AUTH_BINDPW', 'ServiceAccountsPassword');
  *	define('LDAP_AUTH_BASEDN', 'dc=example,dc=com');
  * 	define('LDAP_AUTH_ANONYMOUSBEFOREBIND', FALSE);
  *	// ??? will be replaced with the entered username(escaped) at login 
  *	define('LDAP_AUTH_SEARCHFILTER', '(&(objectClass=person)(uid=???))');
  *	// Optional configuration
+ *      define('LDAP_AUTH_BINDDN', 'cn=serviceaccount,dc=example,dc=com');
+ *      define('LDAP_AUTH_BINDPW', 'ServiceAccountsPassword');
+ *      define('LDAP_AUTH_LOGIN_ATTRIB', 'uid');
  *	  
  *  define('LDAP_AUTH_SCHEMA_CACHE_ENABLE', TRUE);
  *    Enables Schema Caching (Recommended) 
@@ -115,6 +116,9 @@ class Auth_Ldap extends Plugin implements IAuthModule {
 			$anonymousBeforeBind=defined('LDAP_AUTH_ANONYMOUSBEFOREBIND') ?
 				LDAP_AUTH_ANONYMOUSBEFOREBIND : FALSE;
 			
+			$bindDN = defined('LDAP_AUTH_BINDDN') ? LDAP_AUTH_BINDDN : null;
+			$bindPW = defined('LDAP_AUTH_BINDPW') ? LDAP_AUTH_BINDPW : null;
+			
 			$parsedURI=parse_url(LDAP_AUTH_SERVER_URI);
 			if ($parsedURI === FALSE) {
 				$this->_log('Could not parse LDAP_AUTH_SERVER_URI in config.php');
@@ -127,8 +131,8 @@ class Auth_Ldap extends Plugin implements IAuthModule {
 			);
 
 			if (!$anonymousBeforeBind) {
-				$ldapConnParams['binddn']= LDAP_AUTH_BINDDN;
-				$ldapConnParams['bindpw']= LDAP_AUTH_BINDPW;
+				$ldapConnParams['binddn']= $bindDN;
+				$ldapConnParams['bindpw']= $bindPW;
 			}
 			$ldapConnParams['starttls']= defined('LDAP_AUTH_USETLS') ?
 				LDAP_AUTH_USETLS : FALSE;
@@ -152,15 +156,15 @@ class Auth_Ldap extends Plugin implements IAuthModule {
 			}
 			$this->ldapObj = new Net_LDAP2;
 			$ldapConn=$this->ldapObj->connect($ldapConnParams);
-			if (Net_LDAP2::isError($ldapConn)) {
+			if ($this->ldapObj->isError($ldapConn)) {
 				$this->_log('Could not connect to LDAP Server: '.$ldapConn->getMessage());
 				return FALSE;
 			}
 			// Bind with service account if orignal connexion was anonymous
-			if ($anonymousBeforeBind) {
-				$binding=$this->ldapObj->bind(LDAP_AUTH_BINDDN, LDAP_AUTH_BINDPW);
+			if ($anonymousBeforeBind && $bindDN && $bindPW) {
+				$binding=$ldapConn->bind($bindDN, $bindPW);
 				if ($this->ldapObj->isError($binding)) {
-					$this->_log('Cound not bind service account: '.$binding->getMessage());
+					$this->_log('Could not bind to ldap: '.$binding->getMessage());
 					return FALSE;
 				}
 			} 
@@ -196,13 +200,16 @@ class Auth_Ldap extends Plugin implements IAuthModule {
 			}
 			
 			//Searching for user
-			$completedSearchFiler=str_replace('???',$login,LDAP_AUTH_SEARCHFILTER);
-			$filterObj=Net_LDAP2_Filter::parse($completedSearchFiler);
-			$searchResults=$this->ldapObj->search(LDAP_AUTH_BASEDN, $filterObj);
+			$completedSearchFilter=str_replace('???',$login,LDAP_AUTH_SEARCHFILTER);
+			if ($debugMode) $this->_log('LDAP Search Filter: '.$completedSearchFilter);
+			$filterObj=Net_LDAP2_Filter::parse($completedSearchFilter);
+                        //if ($debugMode) $this->_log('LDAP Search Filter: '.var_export($filterObj, true));
+			$searchResults=$ldapConn->search(LDAP_AUTH_BASEDN, $filterObj);
 			if ($this->ldapObj->isError($searchResults)) {
 				$this->_log('LDAP Search Failed: '.$searchResults->getMessage());
 				return FALSE;
 			} elseif ($searchResults->count() === 0) {
+				if ($debugMode) $this->_log('LDAP Search Failed: zero results');
 				if ($logAttempts) $this->_logAttempt((string)$login, 'Unknown User');
 				return FALSE;
 			} elseif ($searchResults->count() > 1 ) {
@@ -213,11 +220,23 @@ class Auth_Ldap extends Plugin implements IAuthModule {
 			$userEntry=$searchResults->shiftEntry();
 			$userDN=$userEntry->dn();
 			//Binding with user's DN. 
-			$loginAttempt=$this->ldapObj->bind($userDN, $password);
+			$this->_log('Try binding with users DN:'.$userDN);
+			$loginAttempt=$ldapConn->bind($userDN, $password);
 			$ldapConn->disconnect();
 			if ($loginAttempt === TRUE) {
-				if ($logAttempts) $this->_logAttempt((string)$login, 'successful');
-				return $this->base->auto_create_user($login);
+				$loginAttribute = defined('LDAP_AUTH_LOGIN_ATTRIB') ? LDAP_AUTH_LOGIN_ATTRIB : 'uid';
+				$entry = $ldapConn->getEntry($userDN, ($loginAttribute));
+				if ($this->ldapObj->isError($entry)) {
+					if ($logAttempts) $this->_logAttempt((string)$login, 'fetching LDAP user entry failed');
+					return FALSE;
+				}
+				$ldapLogin = $entry->getValue($loginAttribute, 'single');
+				if ($ldapLogin == "") {
+					if ($logAttempts) $this->_logAttempt((string)$login, 'reading LDAP login attribute failed');
+					return FALSE;
+				}
+				if ($logAttempts) $this->_logAttempt($ldapLogin . ' (' . (string)$login . ')', 'successful');
+				return $this->base->auto_create_user($ldapLogin);
 			} elseif ($loginAttempt->getCode() == 49) {
 				if ($logAttempts) $this->_logAttempt((string)$login, 'bad password');
 				return FALSE;
