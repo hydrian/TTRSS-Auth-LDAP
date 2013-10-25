@@ -14,13 +14,14 @@
  * 	define('LDAP_AUTH_SERVER_URI', 'ldaps://LDAPServerHostname:port/');
  *	define('LDAP_AUTH_USETLS', FALSE); // Enable TLS Support for ldaps://
  *	define('LDAP_AUTH_ALLOW_UNTRUSTED_CERT', TRUE); // Allows untrusted certificate
- *	define('LDAP_AUTH_BINDDN', 'cn=serviceaccount,dc=example,dc=com');
- *	define('LDAP_AUTH_BINDPW', 'ServiceAccountsPassword');
  *	define('LDAP_AUTH_BASEDN', 'dc=example,dc=com');
  * 	define('LDAP_AUTH_ANONYMOUSBEFOREBIND', FALSE);
  *	// ??? will be replaced with the entered username(escaped) at login 
  *	define('LDAP_AUTH_SEARCHFILTER', '(&(objectClass=person)(uid=???))');
  *	// Optional configuration
+ *      define('LDAP_AUTH_BINDDN', 'cn=serviceaccount,dc=example,dc=com');
+ *      define('LDAP_AUTH_BINDPW', 'ServiceAccountsPassword');
+ *      define('LDAP_AUTH_LOGIN_ATTRIB', 'uid');
  *	  
  *  define('LDAP_AUTH_SCHEMA_CACHE_ENABLE', TRUE);
  *    Enables Schema Caching (Recommended) 
@@ -223,8 +224,19 @@ class Auth_Ldap extends Plugin implements IAuthModule {
 			$loginAttempt=$ldapConn->bind($userDN, $password);
 			$ldapConn->disconnect();
 			if ($loginAttempt === TRUE) {
-				if ($logAttempts) $this->_logAttempt((string)$login, 'successful');
-				return $this->base->auto_create_user($login);
+				$loginAttribute = defined('LDAP_AUTH_LOGIN_ATTRIB') ? LDAP_AUTH_LOGIN_ATTRIB : 'uid';
+				$entry = $ldapConn->getEntry($userDN, ($loginAttribute));
+				if ($this->ldapObj->isError($entry)) {
+					if ($logAttempts) $this->_logAttempt((string)$login, 'fetching LDAP user entry failed');
+					return FALSE;
+				}
+				$ldapLogin = $entry->getValue($loginAttribute, 'single');
+				if ($ldapLogin == "") {
+					if ($logAttempts) $this->_logAttempt((string)$login, 'reading LDAP login attribute failed');
+					return FALSE;
+				}
+				if ($logAttempts) $this->_logAttempt($ldapLogin . ' (' . (string)$login . ')', 'successful');
+				return $this->base->auto_create_user($ldapLogin);
 			} elseif ($loginAttempt->getCode() == 49) {
 				if ($logAttempts) $this->_logAttempt((string)$login, 'bad password');
 				return FALSE;
