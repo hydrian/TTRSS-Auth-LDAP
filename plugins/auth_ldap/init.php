@@ -55,9 +55,21 @@ class Auth_Ldap extends Plugin implements IAuthModule {
 	private $logClass;
 	private $ldapObj = NULL;
 
+  private $_debugMode;
+  private $_serviceBindDN;
+  private $_serviceBindPass;
+  private $_baseDN;
+  private $_useTLS;
+  private $_host;
+  private $_port;
+  private $_scheme;
+  private $_schemaCacheEnabled;
+  private $_anonBeforeBind;
+  private $_allowUntrustedCerts;
+  private $_ldapLoginAttrib;
 
 	function about() {
-		return array(0.04,
+		return array(0.05,
 			"Authenticates against an LDAP server (configured in config.php)",
 			"hydrian",
 			true);
@@ -71,10 +83,10 @@ class Auth_Ldap extends Plugin implements IAuthModule {
 		$host->add_hook($host::HOOK_AUTH_USER, $this);
 	}
 	
-	private function _log($msg, $level = E_USER_WARNING) {
+	private function _log($msg, $level = E_USER_NOTICE,$file='',$line='',$context='') {
 		$loggerFunction = Logger::get();
 		if (is_object($loggerFunction)) {
-			$loggerFunction->log_error($level, $msg);
+			$loggerFunction->log_error($level, $msg,$file,$line,$context);
 		} else {
 			trigger_error($msg, $level);
 		}
@@ -120,6 +132,35 @@ class Auth_Ldap extends Plugin implements IAuthModule {
 		return $ip;
 	}
 
+  private function _getBindDNWord () {
+    return (strlen($this->_serviceBindDN) > 0 ) ?  $this->_serviceBindDN : 'anonymous DN';
+  }
+
+  private function _getTempDir () {
+    if (!sys_get_temp_dir()) {
+      $tmpFile=tempnam();
+      $tmpDir=dirname($tmpFile);
+      unlink($tmpFile);
+      unset($tmpFile);
+      return $tmpDir;
+    } else {
+      return sys_get_temp_dir();
+    }
+  }
+
+  private function _getSchemaCache () {
+        $cacheFileLoc=$this->_getTempDir().'/ttrss-ldapCache-'.$this->_host.':'.$this->_port.'.cache';
+        if ($this->_debugMode) $this->_log('Schema Cache File: '.$cacheFileLoc);
+        $schemaCacheConf=array(
+            'path'=>$cacheFileLoc,
+            'max_age'=>$this->_schemaCacheTimeout
+        );
+        $schemaCacheObj= new Net_LDAP2_SimpleFileSchemaCache($schemaCacheConf);
+        $this->ldapObj->registerSchemaCache($schemaCacheObj);
+        $schemaCacheObj->storeSchema($this->ldapObj->schema());
+        return TRUE;
+  }
+
 	/**
 	 * Main Authentication method
 	 * Required for plugin interface 
@@ -139,135 +180,167 @@ class Auth_Ldap extends Plugin implements IAuthModule {
 				return FALSE;
 			}
 			
-			$debugMode = defined('LDAP_AUTH_DEBUG') ?
+      /**
+      Loading configuration 
+      **/
+
+			$this->_debugMode = defined('LDAP_AUTH_DEBUG') ?
 				LDAP_AUTH_DEBUG : FALSE;
 			
-			$anonymousBeforeBind=defined('LDAP_AUTH_ANONYMOUSBEFOREBIND') ?
+			$this->_anonBeforeBind =defined('LDAP_AUTH_ANONYMOUSBEFOREBIND') ?
 				LDAP_AUTH_ANONYMOUSBEFOREBIND : FALSE;
 			
-			$bindDN = defined('LDAP_AUTH_BINDDN') ? LDAP_AUTH_BINDDN : null;
-			$bindPW = defined('LDAP_AUTH_BINDPW') ? LDAP_AUTH_BINDPW : null;
-			
+			$this->_serviceBindDN = defined('LDAP_AUTH_BINDDN') ? LDAP_AUTH_BINDDN : null;
+			$this->_serviceBindPass = defined('LDAP_AUTH_BINDPW') ? LDAP_AUTH_BINDPW : null;
+      $this->_baseDN = defined('LDAP_AUTH_BASEDN') ? LDAP_AUTH_BASEDN : null;
+      if (!defined('LDAP_AUTH_BASEDN')) {
+        $this->_log('LDAP_AUTH_BASEDN is required and not defined.',E_USER_ERROR);
+  		  return FALSE;
+      } else {
+        $this->_baseDN = LDAP_AUTH_BASEDN;
+      }
+
 			$parsedURI=parse_url(LDAP_AUTH_SERVER_URI);
 			if ($parsedURI === FALSE) {
-				$this->_log('Could not parse LDAP_AUTH_SERVER_URI in config.php');
+				$this->_log('Could not parse LDAP_AUTH_SERVER_URI in config.php',E_USER_ERROR);
 				return FALSE;
 			}
-			$ldapConnParams=array(
-				'host'=>$parsedURI['scheme'].'://'.$parsedURI['host'],
-				'basedn'=>LDAP_AUTH_BASEDN,
-				'options' => array('LDAP_OPT_REFERRALS' => 0)
+      $this->_host = $parsedURI['host'];
+      $this->_scheme = $parsedURI['scheme'];
+
+      if (is_int($parsedURI['port'])) {
+        $this->_port = $parsedURI['port'];
+      } else {
+        $this->_port = ($this->_scheme === 'ldaps') ? 636 : 389 ;
+      }   
+
+      $this->_useTLS = defined('LDAP_AUTH_USETLS') ? LDAP_AUTH_USETLS : FALSE;
+
+      $this->_allowUntrustedCerts = defined('LDAP_AUTH_ALLOW_UNTRUSTED_CERT') ?
+        LDAP_AUTH_ALLOW_UNTRUSTED_CERT : FALSE;
+
+      $this->_schemaCacheEnable= defined('LDAP_AUTH_SCHEMA_CACHE_ENABLE') ?
+        LDAP_AUTH_SCHEMA_CACHE_ENABLE : TRUE;
+
+      $this->_schemaCacheTimeout= defined('LDAP_AUTH_SCHEMA_CACHE_TIMEOUT') ?
+        LDAP_AUTH_SCHEMA_CACHE_TIMEOUT : 86400;
+
+      $this->_logAttempts= defined('LDAP_AUTH_LOG_ATTEMPTS') ?
+        LDAP_AUTH_LOG_ATTEMPTS : FALSE;
+
+      $this->_ldapLoginAttrib = defined('LDAP_AUTH_LOGIN_ATTRIB') ?
+        LDAP_AUTH_LOGIN_ATTRIB : null;
+
+			
+      /**
+      Building LDAP connection
+      **/
+
+      $ldapConnParams=array(
+		'host'=> $this->_scheme.'://'.$this->_host,
+		'options' => array('LDAP_OPT_REFERRALS' => 0),
+      	'basedn'=> $this->_baseDN,
+        'port' => $this->_port,
+        'starttls' => $this->_useTLS
 			);
 
-			if (!$anonymousBeforeBind) {
-				$ldapConnParams['binddn']= $bindDN;
-				$ldapConnParams['bindpw']= $bindPW;
-			}
-			$ldapConnParams['starttls']= defined('LDAP_AUTH_USETLS') ?
-				LDAP_AUTH_USETLS : FALSE;
-					
-			if (is_int($parsedURI['port'])) {
-				$ldapConnParams['port']=$parsedURI['port'];
+			if (!$this->_anonBeforeBind) {
+				$ldapConnParams['binddn']= $this->_serviceBindDN;
+				$ldapConnParams['bindpw']= $this->_serviceBindPass;
 			}
 			
-			$ldapSchemaCacheEnable= defined('LDAP_AUTH_SCHEMA_CACHE_ENABLE') ?
-				LDAP_AUTH_SCHEMA_CACHE_ENABLE : TRUE;
-			
-			$ldapSchemaCacheTimeout= defined('LDAP_AUTH_SCHEMA_CACHE_TIMEOUT') ?
-				LDAP_AUTH_SCHEMA_CACHE_TIMEOUT : 86400;
-			
-			$logAttempts= defined('LDAP_AUTH_LOG_ATTEMPTS') ? 
-				LDAP_AUTH_LOG_ATTEMPTS : FALSE;
-			
-			// Making connection to LDAP server
-			if (LDAP_AUTH_ALLOW_UNTRUSTED_CERT === TRUE) {
+			if ($this->_allowUntrustedCerts) {
 				putenv('LDAPTLS_REQCERT=never');
 			}
-			$this->ldapObj = new Net_LDAP2;
-			$ldapConn=$this->ldapObj->connect($ldapConnParams);
- 			if ($this->ldapObj->isError($ldapConn)) {
+
+      if ($this->_debugMode) $this->_log(print_r($ldapConnParams,TRUE), E_USER_NOTICE);
+			$ldapConn=Net_LDAP2::connect($ldapConnParams);
+ 			
+      if (get_class($ldapConn) !== 'Net_LDAP2') {
 				$this->_log(
-					'Could not connect to LDAP Server: '.$ldapConn->getMessage(), 
+					'Could not connect to LDAP Server: '.$ldapConn->getMessage().' with '.$this->_getBindDNWord(), 
 					E_USER_ERROR
 				);
 				return FALSE;
-			}
+			} else {
+        $this->ldapObj = $ldapConn;
+        $this->_log(
+          'Connected to LDAP Server: '.LDAP_AUTH_SERVER_URI. ' with '.$this->_getBindDNWord());
+      }
+    
 			// Bind with service account if orignal connexion was anonymous
-			if ($anonymousBeforeBind) {
-				$binding=$this->ldapObj->bind($bindDN, $bindPW);
-				if ($this->ldapObj->isError($binding)) {
+			if (($this->_anonBeforeBind) && (strlen($this->_bindDN > 0))) {
+				$binding=$this->ldapObj->bind($this->_serviceBindDN, $this->_serviceBindPass);
+				if (get_class($binding) !== 'Net_LDAP2') {
 					$this->_log(
-						'Cound not bind service account: '.$binding->getMessage(),
-						E_USER_ERROR
-					);
+						'Cound not bind service account: '.$binding->getMessage(),E_USER_ERROR);
 					return FALSE;
-				}
+				} else {
+          $this->_log('Bind with '.$this->_serviceBindDN.' successful.',E_USER_NOTICE);
+        }
 			} 
 			
 			//Cache LDAP Schema
 			if ($ldapSchemaCacheEnable) {
-				if (!sys_get_temp_dir()) {
-					$tmpFile=tempnam();
-					$tmpDir=dirname($tmpFile);
-					unlink($tmpFile);
-					unset($tmpFile);
-				} else {
-					$tmpDir=sys_get_temp_dir();
-				}
-				if (empty($parsedURI['port'])) {
-					$ldapPort= $parsedURI['scheme'] == 'ldaps' ?
-						636 : 389;
-				} else {
-					$ldapPort=$parsedURI['port'];
-				}
-				$cacheFileLoc=
-					$tmpDir.'/ttrss-ldapCache-'.
-					$parsedURI['host'].':'.$ldapPort.
-					'.cache';
-				if ($debugMode) $this->_log('Schema Cache File: '.$cacheFileLoc, E_USER_NOTICE);
-				$schemaCacheConf=array(
-						'path'=>$cacheFileLoc,
-						'max_age'=>$ldapSchemaCacheTimeout
-				);
-				$schemaCacheObj= new Net_LDAP2_SimpleFileSchemaCache($schemaCacheConf);
-				$ldapConn->registerSchemaCache($schemaCacheObj);
-				$schemaCacheObj->storeSchema($ldapConn->schema());
+        $this->_getSchemaCache();
 			}
+
+      //Validate BaseDN 
+      $baseDNObj=$this->ldapObj->getEntry($this->_baseDN);
+      if (get_class($baseDNObj) !== 'Net_LDAP2_Entry') {
+        $this->_log('Cound not get LDAP_AUTH_BASEDN.  Please check config.php',E_USER_ERROR);
+        //return FALSE;
+      }
 			
 			//Searching for user
 			$completedSearchFilter=str_replace('???',$login,LDAP_AUTH_SEARCHFILTER);
 			$filterObj=Net_LDAP2_Filter::parse($completedSearchFilter);
-			if (PEAR::isError($filterObj)) {
+			if (get_class($filterObj) !== 'Net_LDAP2_Filter') {
 				$this->_log( 'Could not parse LDAP Search filter', E_USER_ERROR);
 				return FALSE;
 			}
-			$searchResults=$this->ldapObj->search(LDAP_AUTH_BASEDN, $filterObj);
-			if ($this->ldapObj->isError($searchResults)) {
-				$this->_log('LDAP Search Failed: '.$searchResults->getMessage());
+      if ($this->_debugMode) $this->_log(
+        "Seaching for user $login with this query ".$filterObj->asString().' within '.$this->_baseDN);
+			$searchResults=$this->ldapObj->search($this->_baseDN, $filterObj);
+			if (get_class($searchResults) !== 'Net_LDAP2_Search') {
+				$this->_log('LDAP Search Failed: '.$searchResults->getMessage(),E_USER_ERROR);
 				return FALSE;
 			} elseif ($searchResults->count() === 0) {
 				$this->_log((string)$login, 'Unknown User',	E_USER_NOTICE);
 				return FALSE;
 			} elseif ($searchResults->count() > 1 ) {
-				$this->_log('Multiple DNs found for username '.$login, E_USER_WARNING);
+				$this->_log('Multiple DNs found for username '.(string)$login, E_USER_WARNING);
 				return FALSE;
 			}
 			//Getting user's DN from search
 			$userEntry=$searchResults->shiftEntry();
 			$userDN=$userEntry->dn();
 			//Binding with user's DN. 
-			$this->_log('Try binding with user\'s DN: '.$userDN);
-			$loginAttempt=$ldapConn->bind($userDN, $password);
-			$ldapConn->disconnect();
+			if ($this->_debugMode) $this->_log('Try to bind with user\'s DN: '.$userDN);
+			$loginAttempt=$this->ldapObj->bind($userDN, $password);
 			if ($loginAttempt === TRUE) {
-				$this->_log('User: '.(string)$login.' authentication successful', E_USER_NOTICE);
-				return $this->base->auto_create_user($login);
+				$this->_log('User: '.(string)$login.' authentication successful');
+				if (strlen($this->_ldapLoginAttrib) > 0) {
+          if ($this->_debugMode) $this->_log('Looking up TT-RSS username attribute in '.$this->_ldapLoginAttrib);
+          $ttrssUsername=$userEntry->getValue($this->_ldapLoginAttrib,'single');
+          $this->ldapObj->disconnect();
+          if (!is_string($ttrssUsername)) {
+            $this->_log('Could not find user name attribute '.$this->_ldapLoginAttrib.' in LDAP entry', E_USER_WARNING);
+            return FALSE;
+          } 
+          return $this->base->auto_create_user($ttrssUsername);
+        } else {
+          $this->ldapObj->disconnect();
+          return $this->base->auto_create_user($login);
+        }
 			} elseif ($loginAttempt->getCode() == 49) {
-				$this->_log('User: '.(string)$login.' authentication failed', E_USER_NOTICE);
+        $this->ldapObj->disconnect();
+				$this->_log('User: '.(string)$login.' authentication failed');
 				return FALSE;
 			} else {
+        $this->ldapObj->disconnect();
 				$this->_log('Unknown Error: Code: '.$loginAttempt->getCode().
-					' Message: '.$loginAttempt->getMessage().' user('.(string)$login.')');
+					' Message: '.$loginAttempt->getMessage().' user('.(string)$login.')',E_USER_WARNING);
 				return FALSE;
 			}
 		}
