@@ -293,7 +293,7 @@ class Auth_Ldap extends Plugin implements IAuthModule {
       }
 			
 			//Searching for user
-			$completedSearchFilter=str_replace('???',$login,LDAP_AUTH_SEARCHFILTER);
+			$completedSearchFilter=str_replace('???',Net_LDAP2_Util::escape_filter_value($login)[0],LDAP_AUTH_SEARCHFILTER);
 			$filterObj=Net_LDAP2_Filter::parse($completedSearchFilter);
 			if (get_class($filterObj) !== 'Net_LDAP2_Filter') {
 				$this->_log( 'Could not parse LDAP Search filter', E_USER_ERROR);
