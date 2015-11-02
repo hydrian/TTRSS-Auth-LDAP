@@ -230,9 +230,7 @@ class Auth_Ldap extends Plugin implements IAuthModule {
                 return FALSE;
             }
 
-            /**
-              Loading configuration
-             * */
+            //Loading configuration
             $this->_debugMode = defined('LDAP_AUTH_DEBUG') ?
                     LDAP_AUTH_DEBUG : FALSE;
 
