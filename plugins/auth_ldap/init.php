@@ -110,7 +110,7 @@ class Auth_Ldap extends Plugin implements IAuthModule {
      * @param int $flags Any combination of LDAP_ESCAPE_* flags to indicate the
      *                   set(s) of characters to escape.
      * @return string
-     */
+     **/
     function ldap_escape($subject, $ignore = '', $flags = 0)
     {
         if (!function_exists('ldap_escape')) {
