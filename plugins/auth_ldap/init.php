@@ -365,10 +365,10 @@ class Auth_Ldap extends Plugin implements IAuthModule {
             $loginAttempt = @ldap_bind($ldapConn, $userDN, $password);
             if ($loginAttempt === TRUE) {
                 $this->_log('User: ' . (string) $login . ' authentication successful');
-                if (strlen(userAttributes) > 0) {
+                if (strlen($this->_ldapLoginAttrib) > 0) {
                     if ($this->_debugMode)
                         $this->_log('Looking up TT-RSS username attribute in ' . $this->_ldapLoginAttrib);
-                    $ttrssUsername = $userAttributes['sAMAccountName'][0];
+                    $ttrssUsername = $userAttributes[$this->_ldapLoginAttrib][0];
                     ;
                     @ldap_close($ldapConn);
                     if (!is_string($ttrssUsername)) {
