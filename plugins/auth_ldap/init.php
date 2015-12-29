@@ -3,7 +3,7 @@
 /**
  * Tiny Tiny RSS plugin for LDAP authentication 
  * @author tsmgeek (tsmgeek@gmail.com)
- * @originalauthor hydrian (ben.tyger@tygerclan.net)
+ * @author hydrian (ben.tyger@tygerclan.net)
  * @copyright GPL2
  *  Requires php-ldap 
  * @version 2.00
