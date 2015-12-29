@@ -332,7 +332,7 @@ class Auth_Ldap extends Plugin implements IAuthModule {
               } */
 
             //Searching for user
-            $filterObj = str_replace('???', ldap_escape($login), LDAP_AUTH_SEARCHFILTER);
+            $filterObj = str_replace('???', $this->ldap_escape($login), LDAP_AUTH_SEARCHFILTER);
             $searchResults = @ldap_search($ldapConn, $this->_baseDN, $filterObj, array('displayName', 'title', 'sAMAccountName'), 0, 0, 0);
             if ($searchResults === FALSE) {
                 $this->_log('LDAP Search Failed on base \'' . $this->_baseDN . '\' for \'' . $filterObj . '\'', E_USER_ERROR);
