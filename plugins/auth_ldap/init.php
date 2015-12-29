@@ -6,7 +6,7 @@
  * @originalauthor hydrian (ben.tyger@tygerclan.net)
  * @copyright GPL2
  *  Requires php-ldap 
- * @version 1.00
+ * @version 2.00
  */
 /**
  *  Configuration
