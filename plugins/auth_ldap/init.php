@@ -78,7 +78,7 @@ class Auth_Ldap extends Plugin implements IAuthModule {
         $host->add_hook($host::HOOK_AUTH_USER, $this);
     }
 
-    private function _log($msg, $level = E_USER_NOTICE, $file = '', $line = '', $context = '') {
+    private function _log($msg, $level = E_USER_NOTICE, $file = '', $line = 0, $context = '') {
         $loggerFunction = Logger::get();
         if (is_object($loggerFunction)) {
             $loggerFunction->log_error($level, $msg, $file, $line, $context);
@@ -331,7 +331,7 @@ class Auth_Ldap extends Plugin implements IAuthModule {
 
             //Searching for user
             $filterObj = str_replace('???', $this->ldap_escape($login), LDAP_AUTH_SEARCHFILTER);
-            $searchResults = @ldap_search($ldapConn, $this->_baseDN, $filterObj, array('displayName', 'title', 'sAMAccountName'), 0, 0, 0);
+            $searchResults = @ldap_search($ldapConn, $this->_baseDN, $filterObj, array('displayName', 'title', $this->_ldapLoginAttrib), 0, 0, 0);
             if ($searchResults === FALSE) {
                 $this->_log('LDAP Search Failed on base \'' . $this->_baseDN . '\' for \'' . $filterObj . '\'', E_USER_ERROR);
                 return FALSE;
