@@ -19,7 +19,7 @@ Now, open the `config.php` file in your TT-RSS directory.
 First, add the plugin to the list of enabled plugins:
 
 ```php
-/// add auth_ldap
+/// append auth_ldap to the list
 define('PLUGINS', 'auth_ldap, auth_internal, note');
 ```
 
