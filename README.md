@@ -24,10 +24,10 @@ define('PLUGINS', 'auth_ldap, auth_internal, note');
 ```
 
 Second, add the following lines to the file and fill in the details of your ldap installation:
-
+Required parameters:
 ```php
 define('LDAP_AUTH_SERVER_URI', 'ldap://localhost:389/');
-define('LDAP_AUTH_USETLS', FALSE); // Enable TLS Support for ldaps://
+define('LDAP_AUTH_USETLS', FALSE); // Enable StartTLS Support for ldap://
 define('LDAP_AUTH_ALLOW_UNTRUSTED_CERT', TRUE); // Allows untrusted certificate
 define('LDAP_AUTH_BASEDN', 'dc=example,dc=com');
 define('LDAP_AUTH_ANONYMOUSBEFOREBIND', FALSE);
