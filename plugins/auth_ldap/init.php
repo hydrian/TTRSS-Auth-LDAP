@@ -55,6 +55,7 @@ class Auth_Ldap extends Plugin implements IAuthModule {
     private $_serviceBindPass;
     private $_baseDN;
     private $_useTLS;
+    private $_uri;
     private $_host;
     private $_port;
     private $_scheme;
@@ -248,6 +249,7 @@ class Auth_Ldap extends Plugin implements IAuthModule {
             }
 
             $parsedURI = parse_url(LDAP_AUTH_SERVER_URI);
+            $this->_uri = LDAP_AUTH_SERVER_URI;
             if ($parsedURI === FALSE) {
                 $this->_log('Could not parse LDAP_AUTH_SERVER_URI in config.php', E_USER_ERROR);
                 return FALSE;
@@ -282,7 +284,7 @@ class Auth_Ldap extends Plugin implements IAuthModule {
 
             if ($this->_debugMode)
                 $this->_log(print_r($ldapConnParams, TRUE), E_USER_NOTICE);
-            $ldapConn = @ldap_connect($this->_host, $this->_port);
+            $ldapConn = @ldap_connect($this->_uri);
             if ($ldapConn === FALSE) {
                 $this->_log('Could not connect to LDAP Server: \'' . $this->_host . '\'', E_USER_ERROR);
                 return false;
@@ -300,7 +302,7 @@ class Auth_Ldap extends Plugin implements IAuthModule {
                 return false;
             }
 
-            if (stripos($this->_host, "ldaps:") === FALSE and $this->_useTLS) {
+            if (stripos($this->_scheme, "ldaps") === FALSE and $this->_useTLS) {
                 if (!@ldap_start_tls($ldapConn)) {
                     $this->_log('Unable to force TLS', E_USER_ERROR);
                     return false;
