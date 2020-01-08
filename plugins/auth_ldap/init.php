@@ -343,7 +343,7 @@ class Auth_Ldap extends Plugin implements IAuthModule {
                 $this->_log('Multiple DNs found for username ' . (string) $login, E_USER_WARNING);
                 return FALSE;
             } elseif ($count === 0) {
-                $this->_log((string) $login, 'Unknown User', E_USER_NOTICE);
+                $this->_log('Unknown User ' . (string) $login, E_USER_NOTICE);
                 return FALSE;
             }
 
