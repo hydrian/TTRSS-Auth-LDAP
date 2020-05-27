@@ -218,8 +218,8 @@ class Auth_Ldap extends Plugin implements IAuthModule {
     /**
      * Main Authentication method
      * Required for plugin interface 
-     * @param unknown $login  User's username
-     * @param unknown $password User's password
+     * @param string $login  User's username
+     * @param string $password User's password
      * @return boolean
      */
     function authenticate($login, $password) {
