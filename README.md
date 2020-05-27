@@ -8,10 +8,10 @@ whatever reason (usually it's because I can't properly test their functionality)
 Usage instructions
 =================
 
-First of app, make sure you have `php5-ldap` installed.
-For Debian users, just do
+First of app, make sure you have `php-ldap` installed.
+For Debian/Ubuntu users, just do
 
-`sudo apt-get install php5-ldap`
+`sudo apt-get install php-ldap`
 
 
 Now, open the `config.php` file in your TT-RSS directory.
