@@ -43,7 +43,7 @@
  *   * OpenLDAP support with MemberOf Overlay
  *
  */
-class Auth_Ldap extends Plugin implements IAuthModule {
+class Auth_Ldap extends Auth_Base {
 
     private $link;
     private $host;
@@ -73,7 +73,7 @@ class Auth_Ldap extends Plugin implements IAuthModule {
     function init($host) {
         $this->link = $host->get_link();
         $this->host = $host;
-        $this->base = new Auth_Base($this->link);
+        //$this->base = new Auth_Base($this->link);
 
         $host->add_hook($host::HOOK_AUTH_USER, $this);
     }
@@ -375,10 +375,10 @@ class Auth_Ldap extends Plugin implements IAuthModule {
                         $this->_log('Could not find user name attribute ' . $this->_ldapLoginAttrib . ' in LDAP entry', E_USER_WARNING);
                         return FALSE;
                     }
-                    return $this->base->auto_create_user($ttrssUsername);
+                    return $this->auto_create_user($ttrssUsername);
                 } else {
                     @ldap_close($ldapConn);
-                    return $this->base->auto_create_user($login);
+                    return $this->auto_create_user($login);
                 }
             } else {
                 @ldap_close($ldapConn);
