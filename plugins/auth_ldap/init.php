@@ -79,12 +79,7 @@ class Auth_Ldap extends Plugin implements IAuthModule {
     }
 
     private function _log($msg, $level = E_USER_NOTICE, $file = '', $line = 0, $context = '') {
-        $loggerFunction = Logger::get();
-        if (is_object($loggerFunction)) {
-            $loggerFunction->log_error($level, $msg, $file, $line, $context);
-        } else {
-            trigger_error($msg, $level);
-        }
+        Logger::log_error($level, $msg, $file, $line, $context);
     }
 
     /**
